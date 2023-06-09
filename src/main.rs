@@ -1,6 +1,7 @@
 pub mod generation;
 pub mod player;
 mod prelude;
+pub mod queue;
 pub mod render;
 pub mod storage;
 mod trait_ext;

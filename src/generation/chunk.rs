@@ -6,7 +6,6 @@ use crate::{
 use bevy::{
     math::Vec3Swizzles,
     tasks::{AsyncComputeTaskPool, Task},
-    utils::HashSet,
 };
 use futures_lite::future::{block_on, poll_once};
 use ilattice::prelude::Extent;
@@ -22,10 +21,16 @@ impl Plugin for ChunkGenerationPlugin {
     }
 }
 
-#[derive(Default, Resource)]
-pub struct ChunkGenerationQueue {
-    pub queue: HashSet<IVec3>,
+#[derive(PartialEq, Eq, Hash)]
+pub struct GenerateChunk(IVec3);
+
+impl From<IVec3> for GenerateChunk {
+    fn from(value: IVec3) -> Self {
+        Self(value)
+    }
 }
+
+pub type ChunkGenerationQueue = UnorderedQueue<GenerateChunk>;
 
 #[derive(Component)]
 pub struct ChunkGenerationTask {
@@ -59,14 +64,14 @@ fn handle_queue(
     mut queue: ResMut<ChunkGenerationQueue>,
     mut cache: ResMut<HeightmapGenerationCache>,
 ) {
-    for origin in queue.queue.drain() {
+    for GenerateChunk(origin) in queue.drain() {
         let thread_pool = AsyncComputeTaskPool::get();
 
         let heightmap_result = generate_heightmap(cache.as_mut(), origin.xz());
 
         let task = thread_pool.spawn(generate_chunk_impl(origin, heightmap_result));
 
-        let entity = entity_map.map.get(&origin).unwrap().clone();
+        let entity = *entity_map.map.get(&origin).unwrap();
 
         commands.entity(entity).insert(ChunkGenerationTask { task });
     }
@@ -82,7 +87,7 @@ fn handle_tasks(
         if let Some(voxel_chunk) = block_on(poll_once(&mut task.task)) {
             voxel_world.insert(chunk.position, voxel_chunk);
             commands.entity(entity).remove::<ChunkGenerationTask>();
-            mesh_queue.queue.insert(chunk.position);
+            mesh_queue.push(chunk.position);
         }
     }
 }

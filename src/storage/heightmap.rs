@@ -7,6 +7,12 @@ pub struct Heightmap {
     data: [i32; PADDED_CHUNK_SIZE.pow(2) as usize],
 }
 
+impl Default for Heightmap {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Heightmap {
     pub fn new() -> Self {
         Self {
@@ -24,10 +30,10 @@ impl Heightmap {
 
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = (UVec2, i32)> + '_ {
-        self.data.iter().enumerate().map(|(i, &v)| {
+        self.data.iter().enumerate().map(|(i, v)| {
             (
                 UVec2::from_slice(&FLAT_CHUNK_SHAPE.delinearize(i as u32)),
-                v,
+                *v,
             )
         })
     }

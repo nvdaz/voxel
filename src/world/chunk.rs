@@ -1,8 +1,4 @@
-use bevy::{
-    math::Vec3A,
-    render::primitives::Aabb,
-    utils::{HashMap, HashSet},
-};
+use bevy::{math::Vec3A, render::primitives::Aabb, utils::HashMap};
 
 use crate::{generation::chunk::ChunkGenerationQueue, prelude::*};
 
@@ -56,10 +52,16 @@ pub struct ChunkEntityMap {
     pub map: HashMap<IVec3, Entity>,
 }
 
-#[derive(Default, Resource)]
-pub struct LoadChunkQueue {
-    pub queue: HashSet<IVec3>,
+#[derive(PartialEq, Eq, Hash)]
+pub struct LoadChunk(IVec3);
+
+impl From<IVec3> for LoadChunk {
+    fn from(value: IVec3) -> Self {
+        Self(value)
+    }
 }
+
+pub type LoadChunkQueue = UnorderedQueue<LoadChunk>;
 
 fn handle_load_chunk_queue(
     mut commands: Commands,
@@ -69,10 +71,10 @@ fn handle_load_chunk_queue(
     world: Res<VoxelWorld>,
     mut chunk_gen_queue: ResMut<ChunkGenerationQueue>,
 ) {
-    for position in queue.queue.drain() {
+    for LoadChunk(position) in queue.drain() {
         if !entity_map.map.contains_key(&position) {
             if !world.contains(&position) {
-                chunk_gen_queue.queue.insert(position);
+                chunk_gen_queue.push(position);
             } // TODO: else -> mark as dirty
             let material = materials.add(StandardMaterial::from(Color::rgb(0.5, 0.0, 0.5)));
             let entity = commands

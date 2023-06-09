@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use bevy::utils::{HashMap, HashSet};
+use bevy::utils::HashMap;
 use futures_lite::future::{block_on, poll_once};
 use futures_util::{
     future::{BoxFuture, Shared},
@@ -16,31 +16,27 @@ pub struct HeightmapGenerationPlugin;
 
 impl Plugin for HeightmapGenerationPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<HeightmapGenerationQueue>()
-            .init_resource::<HeightmapGenerationCache>()
+        app.init_resource::<HeightmapGenerationCache>()
             .add_system(process_cache);
     }
 }
 
-#[derive(Default, Resource)]
-pub struct HeightmapGenerationQueue {
-    queue: HashSet<IVec2>,
-}
-
-#[derive(Default, Resource)]
+#[derive(Resource)]
 pub struct HeightmapGenerationCache {
     tasks: HashMap<IVec2, Shared<BoxFuture<'static, Arc<Heightmap>>>>,
     cache: HashMap<IVec2, Arc<Heightmap>>, // TODO: clear old values
 }
 
-impl HeightmapGenerationCache {
-    fn new() -> Self {
+impl Default for HeightmapGenerationCache {
+    fn default() -> Self {
         Self {
             tasks: HashMap::with_capacity(64),
             cache: HashMap::with_capacity(128),
         }
     }
+}
 
+impl HeightmapGenerationCache {
     fn get_cache(&self, position: &IVec2) -> Option<&Arc<Heightmap>> {
         self.cache.get(position)
     }

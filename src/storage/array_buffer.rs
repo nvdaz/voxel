@@ -62,3 +62,9 @@ impl VoxelBuffer {
         &self.data
     }
 }
+
+impl Default for VoxelBuffer {
+    fn default() -> Self {
+        Self::new()
+    }
+}

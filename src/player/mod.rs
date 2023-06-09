@@ -1,4 +1,4 @@
-use crate::{generation::chunk::ChunkGenerationQueue, prelude::*, world::chunk::LoadChunkQueue};
+use crate::{prelude::*, world::chunk::LoadChunkQueue};
 use bevy::{input::mouse::MouseMotion, window::PrimaryWindow};
 use bevy_dolly::prelude::*;
 
@@ -77,7 +77,7 @@ fn update_camera(
     let boost: f32 = if keys.pressed(KeyCode::LShift) {
         boost_mult
     } else {
-        1.
+        1.0
     };
 
     let mut delta = Vec2::ZERO;
@@ -112,7 +112,7 @@ fn load_chunks(
             for z in -16..16 {
                 let chunk = (origin / 32.0).as_ivec3() + IVec3::new(x, y, z);
 
-                chunk_queue.queue.insert(chunk);
+                chunk_queue.push(chunk);
             }
         }
     }

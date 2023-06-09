@@ -9,7 +9,6 @@ use bevy::{
         render_resource::PrimitiveTopology,
     },
     tasks::{AsyncComputeTaskPool, Task},
-    utils::HashSet,
 };
 use block_mesh::{greedy_quads, GreedyQuadsBuffer, RIGHT_HANDED_Y_UP_CONFIG};
 use futures_lite::future::{block_on, poll_once};
@@ -31,10 +30,16 @@ impl Plugin for MeshPlugin {
     }
 }
 
-#[derive(Default, Resource)]
-pub struct MeshChunkQueue {
-    pub queue: HashSet<IVec3>,
+#[derive(PartialEq, Eq, Hash)]
+pub struct MeshChunk(IVec3);
+
+impl From<IVec3> for MeshChunk {
+    fn from(value: IVec3) -> Self {
+        Self(value)
+    }
 }
+
+pub type MeshChunkQueue = UnorderedQueue<MeshChunk>;
 
 #[derive(Component)]
 struct MeshChunkTask {
@@ -51,7 +56,7 @@ fn handle_mesh_queue(
     world: Res<VoxelWorld>,
 ) {
     let thread_pool = AsyncComputeTaskPool::get();
-    for position in queue.queue.drain() {
+    for MeshChunk(position) in queue.drain() {
         let entity = *entity_map.map.get(&position).unwrap();
         let chunk = world.get(&position).unwrap();
         let task = thread_pool.spawn(generate_chunk_mesh_impl(chunk));

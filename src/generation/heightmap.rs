@@ -8,7 +8,7 @@ use futures_util::{
 };
 use ilattice::prelude::Extent;
 use ndshape::ConstShape;
-use noise::{NoiseFn, OpenSimplex};
+use noise::{Clamp, Curve, Fbm, MultiFractal, NoiseFn, OpenSimplex};
 
 use crate::prelude::*;
 
@@ -37,6 +37,14 @@ impl Default for HeightmapGenerationCache {
 }
 
 impl HeightmapGenerationCache {
+    pub fn cache_len(&self) -> usize {
+        self.cache.len()
+    }
+
+    pub fn tasks_len(&self) -> usize {
+        self.tasks.len()
+    }
+
     fn get_cache(&self, position: &IVec2) -> Option<&Arc<Heightmap>> {
         self.cache.get(position)
     }
@@ -83,15 +91,45 @@ pub fn generate_heightmap(
 }
 
 async fn generate_heightmap_impl(origin: IVec2) -> Arc<Heightmap> {
-    let simplex = OpenSimplex::new(0);
+    let simplex = Fbm::<OpenSimplex>::new(0)
+        .set_octaves(4)
+        .set_frequency(0.005)
+        .set_persistence(0.5)
+        .set_lacunarity(2.0);
+
+    let noise = Curve::new(simplex)
+        .add_control_point(-1.0, 0.0)
+        .add_control_point(-0.8, 0.0)
+        .add_control_point(-0.75, -0.25)
+        .add_control_point(-0.7, 0.0)
+        .add_control_point(0.25, 0.0)
+        .add_control_point(0.5, 0.75)
+        .add_control_point(1.0, 1.0);
+
+    // let rivers_simplex = Fbm::<OpenSimplex>::new(1)
+    //     .set_octaves(1)
+    //     .set_frequency(0.005)
+    //     .set_persistence(0.5)
+    //     .set_lacunarity(2.0);
+
+    // let rivers = Curve::new(rivers_simplex)
+    //     .add_control_point(-1.0, -1.0)
+    //     .add_control_point(-0.05, -1.0)
+    //     .add_control_point(0.05, 0.0)
+    //     .add_control_point(0.05, -1.0)
+    //     .add_control_point(1.0, -1.0);
+
+    let noise = Clamp::new(noise).set_bounds(-1.0, 1.0);
+    // let rivers = Clamp::new(rivers).set_bounds(-1.0, 0.0);
+
     let mut heightmap = Heightmap::new();
 
     for offset in Extent::from_min_and_shape(UVec2::ZERO, FlatChunkShape::ARRAY.into()).iter2() {
         let position = (origin * CHUNK_SIZE as i32) + offset.as_ivec2();
 
-        let height = simplex
-            .get((position.as_dvec2() / 50.0).to_array())
-            .mul_add(40.0, 4.0);
+        let dposition = position.as_dvec2().to_array();
+
+        let height = noise.get(dposition).mul_add(100.0, 0.0);
 
         *heightmap.get_mut(offset) = height as i32;
     }

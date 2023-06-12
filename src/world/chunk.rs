@@ -8,7 +8,8 @@ impl Plugin for WorldChunkPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ChunkEntityMap>()
             .init_resource::<LoadChunkQueue>()
-            .add_system(handle_load_chunk_queue);
+            .init_resource::<DropChunkQueue>()
+            .add_systems((handle_load_chunk_queue, handle_drop_chunk_queue));
     }
 }
 
@@ -61,7 +62,17 @@ impl From<IVec3> for LoadChunk {
     }
 }
 
+#[derive(PartialEq, Eq, Hash)]
+pub struct DropChunk(IVec3);
+
+impl From<IVec3> for DropChunk {
+    fn from(value: IVec3) -> Self {
+        Self(value)
+    }
+}
+
 pub type LoadChunkQueue = UnorderedQueue<LoadChunk>;
+pub type DropChunkQueue = UnorderedQueue<DropChunk>;
 
 fn handle_load_chunk_queue(
     mut commands: Commands,
@@ -76,12 +87,31 @@ fn handle_load_chunk_queue(
             if !world.contains(&position) {
                 chunk_gen_queue.push(position);
             } // TODO: else -> mark as dirty
-            let material = materials.add(StandardMaterial::from(Color::rgb(0.5, 0.0, 0.5)));
+            let material = materials.add(StandardMaterial::from(Color::rgb(1.0, 1.0, 1.0)));
             let entity = commands
                 .spawn(ChunkBundle::new(position, Handle::default(), material))
                 .id();
 
             entity_map.map.insert(position, entity);
+        }
+    }
+}
+
+fn handle_drop_chunk_queue(
+    mut commands: Commands,
+    mut entity_map: ResMut<ChunkEntityMap>,
+    mut queue: ResMut<DropChunkQueue>,
+    mut world: ResMut<VoxelWorld>,
+) {
+    for DropChunk(position) in queue.drain() {
+        if entity_map.map.contains_key(&position) {
+            if let Some(chunk) = world.remove(&position) {
+                // TODO: save
+            }
+
+            if let Some(entity) = entity_map.map.remove(&position) {
+                commands.entity(entity).despawn();
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 pub mod chunk;
 pub mod heightmap;
+mod biomes;
 
 use crate::prelude::*;
 

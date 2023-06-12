@@ -42,7 +42,7 @@ impl From<IVec3> for MeshChunk {
 pub type MeshChunkQueue = UnorderedQueue<MeshChunk>;
 
 #[derive(Component)]
-struct MeshChunkTask {
+pub struct MeshChunkTask {
     task: Task<Mesh>,
 }
 
@@ -106,6 +106,7 @@ async fn generate_chunk_mesh_impl(chunk: Arc<RwLock<VoxelChunk>>) -> Mesh {
 
     let mut indices = Vec::with_capacity(num_indices);
     let mut positions = Vec::with_capacity(num_vertices);
+    let mut colors = Vec::with_capacity(num_vertices);
     let mut normals = Vec::with_capacity(num_vertices);
 
     for (group, face) in greedy_buffer
@@ -118,12 +119,22 @@ async fn generate_chunk_mesh_impl(chunk: Arc<RwLock<VoxelChunk>>) -> Mesh {
             indices.extend_from_slice(&face.quad_mesh_indices(positions.len() as u32));
             positions.extend_from_slice(&face.quad_mesh_positions(quad, 1.0));
             normals.extend_from_slice(&face.quad_mesh_normals());
+            colors.extend_from_slice(
+                &[voxels
+                    .voxel_at(UVec3::from_array(quad.minimum))
+                    .get_color()
+                    .as_rgba_f32(); 4],
+            );
         }
     }
 
     mesh.insert_attribute(
         Mesh::ATTRIBUTE_POSITION,
         VertexAttributeValues::Float32x3(positions),
+    );
+    mesh.insert_attribute(
+        Mesh::ATTRIBUTE_COLOR,
+        VertexAttributeValues::Float32x4(colors),
     );
     mesh.insert_attribute(
         Mesh::ATTRIBUTE_NORMAL,

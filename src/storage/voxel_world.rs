@@ -21,4 +21,12 @@ impl VoxelWorld {
     pub fn contains(&self, position: &IVec3) -> bool {
         self.chunks.contains_key(position)
     }
+
+    pub fn remove(&mut self, position: &IVec3) -> Option<Arc<RwLock<VoxelChunk>>> {
+        self.chunks.remove(position)
+    }
+
+    pub fn len(&self) -> usize {
+        self.chunks.len()
+    }
 }

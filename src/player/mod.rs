@@ -1,17 +1,25 @@
-use crate::{prelude::*, world::chunk::LoadChunkQueue};
+use crate::{
+    prelude::*,
+    render::RenderSettings,
+    world::chunk::{ChunkEntityMap, DropChunkQueue, LoadChunkQueue},
+};
 use bevy::{input::mouse::MouseMotion, window::PrimaryWindow};
+use bevy_atmosphere::prelude::{AtmosphereCamera, AtmospherePlugin};
 use bevy_dolly::prelude::*;
+use ilattice::prelude::Extent;
 
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(DollyCursorGrab)
+            .add_plugin(AtmospherePlugin)
             .add_startup_system(setup)
             .add_systems((
                 update_camera,
                 Dolly::<PlayerCamera>::update_active,
                 load_chunks,
+                drop_chunks,
             ));
     }
 }
@@ -24,11 +32,16 @@ pub struct PlayerCameraBundle {
     player_camera: PlayerCamera,
     rig: Rig,
     camera: Camera3dBundle,
+    atmosphere_camera: AtmosphereCamera,
 }
 
-fn setup(mut commands: Commands) {
+fn setup(mut commands: Commands, render_settings: Res<RenderSettings>) {
     let transform = Transform::from_xyz(2.0, 5.0, 2.0).looking_at(Vec3::ZERO, Vec3::Y);
 
+    println!(
+        "{:?}",
+        render_settings.view_radius.max_element() as f32 * CHUNK_SIZE as f32
+    );
     commands.spawn(PlayerCameraBundle {
         player_camera: PlayerCamera,
         rig: Rig::builder()
@@ -36,8 +49,13 @@ fn setup(mut commands: Commands) {
             .build(),
         camera: Camera3dBundle {
             transform,
+            projection: Projection::Perspective(PerspectiveProjection {
+                far: render_settings.view_radius.as_vec3().length() * CHUNK_SIZE as f32,
+                ..default()
+            }),
             ..default()
         },
+        atmosphere_camera: AtmosphereCamera::default(),
     });
 }
 
@@ -49,7 +67,7 @@ fn update_camera(
     mut rig_query: Query<&mut Rig, With<PlayerCamera>>,
 ) {
     let time_delta_seconds: f32 = time.delta_seconds();
-    let boost_mult = 5.0f32;
+    let boost_mult = 25.0f32;
     let sensitivity = Vec2::splat(1.0);
 
     let mut move_vec = Vec3::ZERO;
@@ -103,17 +121,36 @@ fn update_camera(
 }
 
 fn load_chunks(
+    render_settings: Res<RenderSettings>,
     player_transform: Query<&GlobalTransform, With<PlayerCamera>>,
     mut chunk_queue: ResMut<LoadChunkQueue>,
 ) {
-    let origin = player_transform.single().translation();
-    for x in -16..16 {
-        for y in -4..4 {
-            for z in -16..16 {
-                let chunk = (origin / 32.0).as_ivec3() + IVec3::new(x, y, z);
+    let view_distance = render_settings.view_radius;
+    let center = player_transform.single().translation();
+    for offset in
+        Extent::from_min_and_shape(-view_distance.as_ivec3(), view_distance.as_ivec3() * 2).iter3()
+    {
+        let chunk = center.as_ivec3() / CHUNK_SIZE as i32 + offset;
 
-                chunk_queue.push(chunk);
-            }
+        chunk_queue.push(chunk);
+    }
+}
+
+fn drop_chunks(
+    render_settings: Res<RenderSettings>,
+    player_transform: Query<&GlobalTransform, With<PlayerCamera>>,
+    entity_map: Res<ChunkEntityMap>,
+    mut drop_chunk_queue: ResMut<DropChunkQueue>,
+) {
+    let view_distance = render_settings.view_radius;
+    let center = player_transform.single().translation();
+    for &offset in entity_map.map.keys() {
+        let distance = (center.as_ivec3() / CHUNK_SIZE as i32 - offset).abs();
+        if distance
+            .cmpgt(view_distance.as_ivec3() + IVec3::splat(render_settings.drop_padding as i32))
+            .any()
+        {
+            drop_chunk_queue.push(offset);
         }
     }
 }

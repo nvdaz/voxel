@@ -1,6 +1,6 @@
 use bevy::{math::Vec3A, render::primitives::Aabb, utils::HashMap};
 
-use crate::{generation::chunk::ChunkGenerationQueue, prelude::*};
+use crate::{generation::chunk::ChunkGenerationQueue, prelude::*, render::mesh::MeshChunkQueue};
 
 pub struct WorldChunkPlugin;
 
@@ -81,12 +81,15 @@ fn handle_load_chunk_queue(
     mut queue: ResMut<LoadChunkQueue>,
     world: Res<VoxelWorld>,
     mut chunk_gen_queue: ResMut<ChunkGenerationQueue>,
+    mut chunk_mesh_queue: ResMut<MeshChunkQueue>,
 ) {
     for LoadChunk(position) in queue.drain() {
         if !entity_map.map.contains_key(&position) {
             if !world.contains(&position) {
                 chunk_gen_queue.push(position);
-            } // TODO: else -> mark as dirty
+            } else {
+                chunk_mesh_queue.push(position);
+            }
             let material = materials.add(StandardMaterial::from(Color::rgb(1.0, 1.0, 1.0)));
             let entity = commands
                 .spawn(ChunkBundle::new(position, Handle::default(), material))

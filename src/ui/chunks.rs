@@ -1,6 +1,8 @@
 use crate::{
-    generation::chunk::ChunkGenerationTask, player::PlayerCamera, prelude::*,
-    render::mesh::MeshChunkTask,
+    generation::chunk::{ChunkGenerationQueue, ChunkGenerationTask},
+    player::PlayerCamera,
+    prelude::*,
+    render::mesh::{MeshChunkQueue, MeshChunkTask},
 };
 
 #[derive(Component)]
@@ -128,27 +130,31 @@ fn setup(asset_server: Res<AssetServer>, mut commands: Commands) {
 fn update_chunks_system(world: Res<VoxelWorld>, mut text: Query<&mut Text, With<ChunksText>>) {
     for mut text in &mut text {
         let chunks = world.len();
-        text.sections[1].value = format!("{chunks:.0}");
+        text.sections[1].value = format!("{chunks}");
     }
 }
 
 fn update_generating_chunks_system(
     tasks: Query<&ChunkGenerationTask>,
+    queue: Res<ChunkGenerationQueue>,
     mut text: Query<&mut Text, With<GeneratingChunksText>>,
 ) {
     for mut text in &mut text {
-        let chunks = tasks.iter().len();
-        text.sections[1].value = format!("{chunks:.0}");
+        let tasks_len = tasks.iter().len();
+        let queue_len = queue.len();
+        text.sections[1].value = format!("{}", tasks_len + queue_len);
     }
 }
 
 fn update_meshing_chunks_system(
     tasks: Query<&MeshChunkTask>,
+    queue: Res<MeshChunkQueue>,
     mut text: Query<&mut Text, With<MeshingChunksText>>,
 ) {
     for mut text in &mut text {
-        let chunks = tasks.iter().len();
-        text.sections[1].value = format!("{chunks:.0}");
+        let tasks_len = tasks.iter().len();
+        let queue_len = queue.len();
+        text.sections[1].value = format!("{}", tasks_len + queue_len);
     }
 }
 

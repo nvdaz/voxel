@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use bevy::utils::HashMap;
-use futures_lite::future::{block_on, poll_once};
 use futures_util::{
     future::{BoxFuture, Shared},
     FutureExt,
@@ -12,60 +10,26 @@ use noise::{Clamp, Curve, Fbm, MultiFractal, NoiseFn, OpenSimplex};
 
 use crate::prelude::*;
 
+pub type HeightmapGenerationTaskCache = FutureCache<IVec2, Arc<Heightmap>>;
+pub type HeightmapGenerationResultCache = IndefiniteCache<IVec2, Arc<Heightmap>>;
+
 pub struct HeightmapGenerationPlugin;
 
 impl Plugin for HeightmapGenerationPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<HeightmapGenerationCache>()
+        app.init_resource::<HeightmapGenerationTaskCache>()
+            .insert_resource(HeightmapGenerationResultCache::new())
             .add_system(process_cache);
     }
 }
 
-#[derive(Resource)]
-pub struct HeightmapGenerationCache {
-    tasks: HashMap<IVec2, Shared<BoxFuture<'static, Arc<Heightmap>>>>,
-    cache: HashMap<IVec2, Arc<Heightmap>>, // TODO: clear old values
-}
+fn process_cache(
+    mut tasks: ResMut<HeightmapGenerationTaskCache>,
+    mut results: ResMut<HeightmapGenerationResultCache>,
+) {
+    let completed = tasks.drain_completed();
 
-impl Default for HeightmapGenerationCache {
-    fn default() -> Self {
-        Self {
-            tasks: HashMap::with_capacity(64),
-            cache: HashMap::with_capacity(128),
-        }
-    }
-}
-
-impl HeightmapGenerationCache {
-    pub fn cache_len(&self) -> usize {
-        self.cache.len()
-    }
-
-    pub fn tasks_len(&self) -> usize {
-        self.tasks.len()
-    }
-
-    fn get_cache(&self, position: &IVec2) -> Option<&Arc<Heightmap>> {
-        self.cache.get(position)
-    }
-
-    fn get_task(&self, position: &IVec2) -> Option<&Shared<BoxFuture<'static, Arc<Heightmap>>>> {
-        self.tasks.get(position)
-    }
-}
-
-fn process_cache(mut cache: ResMut<HeightmapGenerationCache>) {
-    let mut completed_tasks = HashMap::new();
-    for (position, task) in &mut cache.tasks {
-        if let Some(heightmap) = block_on(poll_once(task)) {
-            completed_tasks.insert(*position, heightmap);
-        }
-    }
-
-    for position in completed_tasks.keys() {
-        cache.tasks.remove(position);
-    }
-    cache.cache.extend(completed_tasks.into_iter());
+    results.extend(completed);
 }
 
 pub enum GenerateHeightmapResult {
@@ -74,17 +38,18 @@ pub enum GenerateHeightmapResult {
 }
 
 pub fn generate_heightmap(
-    cache: &mut HeightmapGenerationCache,
+    tasks: &mut HeightmapGenerationTaskCache,
+    results: &mut HeightmapGenerationResultCache,
     position: IVec2,
 ) -> GenerateHeightmapResult {
-    if let Some(heightmap) = cache.cache.get(&position) {
+    if let Some(heightmap) = results.get(&position) {
         GenerateHeightmapResult::CacheHit(heightmap.clone())
-    } else if let Some(future) = cache.tasks.get(&position) {
+    } else if let Some(future) = tasks.get(&position) {
         GenerateHeightmapResult::Loading(future.clone())
     } else {
         let future = generate_heightmap_impl(position).boxed().shared();
 
-        cache.tasks.insert(position, future.clone());
+        tasks.insert(position, future.clone());
 
         GenerateHeightmapResult::Loading(future)
     }

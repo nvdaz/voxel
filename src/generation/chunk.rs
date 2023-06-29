@@ -1,4 +1,7 @@
+use std::cmp;
+
 use crate::{
+    player::PlayerCamera,
     prelude::*,
     render::mesh::MeshChunkQueue,
     world::chunk::{Chunk, ChunkEntityMap},
@@ -10,18 +13,27 @@ use bevy::{
 use futures_lite::future::{block_on, poll_once};
 use ilattice::prelude::Extent;
 
-use super::heightmap::{generate_heightmap, GenerateHeightmapResult, HeightmapGenerationCache};
+use super::{
+    heightmap::{
+        generate_heightmap, GenerateHeightmapResult, HeightmapGenerationResultCache,
+        HeightmapGenerationTaskCache,
+    },
+    GenerationSettings,
+};
 
 pub struct ChunkGenerationPlugin;
 
 impl Plugin for ChunkGenerationPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<ChunkGenerationQueue>()
-            .add_systems((handle_queue, handle_tasks));
+        app.init_resource::<ChunkGenerationQueue>().add_systems((
+            handle_queue,
+            handle_tasks,
+            update_center,
+        ));
     }
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(Clone, Copy)]
 pub struct GenerateChunk(IVec3);
 
 impl From<IVec3> for GenerateChunk {
@@ -30,7 +42,13 @@ impl From<IVec3> for GenerateChunk {
     }
 }
 
-pub type ChunkGenerationQueue = UnorderedQueue<GenerateChunk>;
+impl From<GenerateChunk> for IVec3 {
+    fn from(value: GenerateChunk) -> Self {
+        value.0
+    }
+}
+
+pub type ChunkGenerationQueue = DistanceOrderedQueue<GenerateChunk, IVec3>;
 
 #[derive(Component)]
 pub struct ChunkGenerationTask {
@@ -64,27 +82,52 @@ async fn generate_chunk_impl(origin: IVec3, heightmap: GenerateHeightmapResult) 
         }
     }
 
-    let chunk = VoxelChunk { voxels };
+    VoxelChunk { voxels }
+}
 
-    chunk
+fn update_center(
+    camera: Query<&GlobalTransform, With<PlayerCamera>>,
+    mut queue: ResMut<ChunkGenerationQueue>,
+) {
+    let camera = camera.single();
+
+    let center = camera.translation().as_ivec3() / CHUNK_SIZE as i32;
+
+    queue.update_center(center)
 }
 
 fn handle_queue(
     mut commands: Commands,
     entity_map: Res<ChunkEntityMap>,
     mut queue: ResMut<ChunkGenerationQueue>,
-    mut cache: ResMut<HeightmapGenerationCache>,
+    mut tasks_cache: ResMut<HeightmapGenerationTaskCache>,
+    mut results_cache: ResMut<HeightmapGenerationResultCache>,
+    tasks: Query<Entity, With<ChunkGenerationTask>>,
+    settings: Res<GenerationSettings>,
 ) {
-    for GenerateChunk(origin) in queue.drain() {
-        let thread_pool = AsyncComputeTaskPool::get();
+    let thread_pool = AsyncComputeTaskPool::get();
 
-        let heightmap_result = generate_heightmap(cache.as_mut(), origin.xz());
+    let mut i = 0;
+    let to = cmp::min(
+        settings
+            .max_generation_tasks
+            .saturating_sub(tasks.iter().len()),
+        queue.len(),
+    );
 
-        let task = thread_pool.spawn(generate_chunk_impl(origin, heightmap_result));
+    while let Some(GenerateChunk(origin)) = queue.pop() {
+        let heightmap_result =
+            generate_heightmap(&mut tasks_cache, &mut results_cache, origin.xz());
 
-        let entity = *entity_map.map.get(&origin).unwrap();
+        if let Some(&entity) = entity_map.map.get(&origin) {
+            let task = thread_pool.spawn(generate_chunk_impl(origin, heightmap_result));
+            commands.entity(entity).insert(ChunkGenerationTask { task });
+        }
 
-        commands.entity(entity).insert(ChunkGenerationTask { task });
+        i += 1;
+        if i >= to {
+            break;
+        }
     }
 }
 

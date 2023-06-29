@@ -1,10 +1,6 @@
 mod conditions;
 
-use std::{ops::Sub, sync::Arc};
-
-use bevy::utils::HashMap;
-use phf::phf_map;
-use strum::{EnumIter, IntoEnumIterator};
+use strum::EnumIter;
 
 use self::conditions::BiomeConditions;
 
@@ -67,30 +63,9 @@ impl Biome {
         }
     }
 
-    fn generator(&self) -> &'static Box<dyn BiomeGenerator> {
+    fn generator(&self) -> &'static dyn BiomeGenerator {
         match self {
             _ => todo!(),
         }
     }
-}
-
-fn get_biomes(conditions: BiomeConditions) -> HashMap<Biome, f32> {
-    let mut absolute_map = HashMap::new();
-    let mut total: f32 = 0.0;
-
-    for biome in Biome::iter() {
-        let difference = BiomeConditions::difference(conditions, biome.get_conditions());
-        absolute_map.insert(biome, difference);
-        total += difference
-    }
-
-    absolute_map.retain(|_, difference| *difference / total < 0.01);
-
-    let mut relative_map = HashMap::new();
-
-    for (biome, difference) in absolute_map {
-        relative_map.insert(biome, 1.0 - difference / total);
-    }
-
-    relative_map
 }

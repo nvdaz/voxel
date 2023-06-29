@@ -1,3 +1,4 @@
+pub mod cache;
 pub mod generation;
 pub mod player;
 mod prelude;
@@ -7,6 +8,7 @@ pub mod storage;
 mod trait_ext;
 mod ui;
 pub mod world;
+pub mod associated_ord;
 
 use generation::GenerationPlugin;
 use player::PlayerPlugin;

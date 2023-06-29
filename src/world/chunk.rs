@@ -83,19 +83,20 @@ fn handle_load_chunk_queue(
     mut chunk_gen_queue: ResMut<ChunkGenerationQueue>,
     mut chunk_mesh_queue: ResMut<MeshChunkQueue>,
 ) {
-    for LoadChunk(position) in queue.drain() {
+    for LoadChunk(position) in queue.drain(..) {
         if !entity_map.map.contains_key(&position) {
-            if !world.contains(&position) {
-                chunk_gen_queue.push(position);
-            } else {
-                chunk_mesh_queue.push(position);
-            }
             let material = materials.add(StandardMaterial::from(Color::rgb(1.0, 1.0, 1.0)));
             let entity = commands
                 .spawn(ChunkBundle::new(position, Handle::default(), material))
                 .id();
 
             entity_map.map.insert(position, entity);
+
+            if !world.contains(&position) {
+                chunk_gen_queue.push(position);
+            } else {
+                chunk_mesh_queue.push(position);
+            }
         }
     }
 }
@@ -106,7 +107,7 @@ fn handle_drop_chunk_queue(
     mut queue: ResMut<DropChunkQueue>,
     mut world: ResMut<VoxelWorld>,
 ) {
-    for DropChunk(position) in queue.drain() {
+    for DropChunk(position) in queue.drain(..) {
         if entity_map.map.contains_key(&position) {
             if let Some(chunk) = world.remove(&position) {
                 // TODO: save

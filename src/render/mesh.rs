@@ -1,5 +1,6 @@
 use std::{
     cell::RefCell,
+    cmp,
     sync::{Arc, RwLock},
 };
 
@@ -17,20 +18,26 @@ use once_cell::sync::Lazy;
 use thread_local::ThreadLocal;
 
 use crate::{
+    player::PlayerCamera,
     prelude::*,
     world::chunk::{Chunk, ChunkEntityMap},
 };
+
+use super::RenderSettings;
 
 pub struct MeshPlugin;
 
 impl Plugin for MeshPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<MeshChunkQueue>()
-            .add_systems((handle_mesh_queue, handle_mesh_tasks));
+        app.init_resource::<MeshChunkQueue>().add_systems((
+            handle_mesh_queue,
+            handle_mesh_tasks,
+            update_center,
+        ));
     }
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(Clone, Copy)]
 pub struct MeshChunk(IVec3);
 
 impl From<IVec3> for MeshChunk {
@@ -39,7 +46,13 @@ impl From<IVec3> for MeshChunk {
     }
 }
 
-pub type MeshChunkQueue = UnorderedQueue<MeshChunk>;
+impl From<MeshChunk> for IVec3 {
+    fn from(value: MeshChunk) -> Self {
+        value.0
+    }
+}
+
+pub type MeshChunkQueue = DistanceOrderedQueue<MeshChunk, IVec3>;
 
 #[derive(Component)]
 pub struct MeshChunkTask {
@@ -54,14 +67,30 @@ fn handle_mesh_queue(
     mut queue: ResMut<MeshChunkQueue>,
     entity_map: Res<ChunkEntityMap>,
     world: Res<VoxelWorld>,
+    tasks: Query<Entity, With<MeshChunkTask>>,
+    settings: Res<RenderSettings>,
 ) {
     let thread_pool = AsyncComputeTaskPool::get();
-    for MeshChunk(position) in queue.drain() {
-        let entity = *entity_map.map.get(&position).unwrap();
-        let chunk = world.get(&position).unwrap();
-        let task = thread_pool.spawn(generate_chunk_mesh_impl(chunk));
 
-        commands.entity(entity).insert(MeshChunkTask { task });
+    let mut i = 0;
+    let to = cmp::min(
+        settings.max_mesh_tasks.saturating_sub(tasks.iter().len()),
+        queue.len(),
+    );
+
+    while let Some(MeshChunk(position)) = queue.pop() {
+        if let Some(&entity) = entity_map.map.get(&position) {
+            if let Some(chunk) = world.get(&position) {
+                let task = thread_pool.spawn(generate_chunk_mesh_impl(chunk));
+
+                commands.entity(entity).insert(MeshChunkTask { task });
+            }
+        }
+
+        i += 1;
+        if i >= to {
+            break;
+        }
     }
 }
 
@@ -80,6 +109,17 @@ fn handle_mesh_tasks(
             }
         }
     }
+}
+
+fn update_center(
+    camera: Query<&GlobalTransform, With<PlayerCamera>>,
+    mut queue: ResMut<MeshChunkQueue>,
+) {
+    let camera = camera.single();
+
+    let center = camera.translation().as_ivec3() / CHUNK_SIZE as i32;
+
+    queue.update_center(center)
 }
 
 async fn generate_chunk_mesh_impl(chunk: Arc<RwLock<VoxelChunk>>) -> Mesh {

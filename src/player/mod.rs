@@ -38,10 +38,6 @@ pub struct PlayerCameraBundle {
 fn setup(mut commands: Commands, render_settings: Res<RenderSettings>) {
     let transform = Transform::from_xyz(2.0, 5.0, 2.0).looking_at(Vec3::ZERO, Vec3::Y);
 
-    println!(
-        "{:?}",
-        render_settings.view_radius.max_element() as f32 * CHUNK_SIZE as f32
-    );
     commands.spawn(PlayerCameraBundle {
         player_camera: PlayerCamera,
         rig: Rig::builder()
@@ -67,7 +63,7 @@ fn update_camera(
     mut rig_query: Query<&mut Rig, With<PlayerCamera>>,
 ) {
     let time_delta_seconds: f32 = time.delta_seconds();
-    let boost_mult = 25.0f32;
+    let boost_mult = 60.0f32;
     let sensitivity = Vec2::splat(1.0);
 
     let mut move_vec = Vec3::ZERO;

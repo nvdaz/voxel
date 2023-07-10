@@ -64,8 +64,6 @@ impl Biome {
     }
 
     fn generator(&self) -> &'static dyn BiomeGenerator {
-        match self {
-            _ => todo!(),
-        }
+        todo!()
     }
 }

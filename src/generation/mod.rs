@@ -1,19 +1,18 @@
 mod biomes;
 pub mod chunk;
 pub mod conditions;
-pub mod heightmap;
+pub mod terrain;
 
 use crate::prelude::*;
 
-use self::{chunk::ChunkGenerationPlugin, heightmap::HeightmapGenerationPlugin};
+use self::chunk::ChunkGenerationPlugin;
 
 pub struct GenerationPlugin;
 
 impl Plugin for GenerationPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<GenerationSettings>()
-            .add_plugin(ChunkGenerationPlugin)
-            .add_plugin(HeightmapGenerationPlugin);
+            .add_plugin(ChunkGenerationPlugin);
     }
 }
 

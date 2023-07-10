@@ -50,29 +50,36 @@ impl ChunkBundle {
 
 #[derive(Default, Resource)]
 pub struct ChunkEntityMap {
-    pub map: HashMap<IVec3, Entity>,
+    map: HashMap<IVec3, Entity>,
 }
 
-#[derive(PartialEq, Eq, Hash)]
-pub struct LoadChunk(IVec3);
+impl ChunkEntityMap {
+    pub fn insert(&mut self, position: IVec3, entity: Entity) {
+        self.map.insert(position, entity);
+    }
 
-impl From<IVec3> for LoadChunk {
-    fn from(value: IVec3) -> Self {
-        Self(value)
+    pub fn get(&self, position: &IVec3) -> Option<Entity> {
+        self.map.get(position).cloned()
+    }
+
+    pub fn contains(&self, position: &IVec3) -> bool {
+        self.map.contains_key(position)
+    }
+
+    pub fn remove(&mut self, position: &IVec3) -> Option<Entity> {
+        self.map.remove(position)
+    }
+
+    pub fn keys(&self) -> impl Iterator<Item = &IVec3> + '_ {
+        self.map.keys()
     }
 }
 
-#[derive(PartialEq, Eq, Hash)]
-pub struct DropChunk(IVec3);
+pub struct LoadChunk;
+pub struct DropChunk;
 
-impl From<IVec3> for DropChunk {
-    fn from(value: IVec3) -> Self {
-        Self(value)
-    }
-}
-
-pub type LoadChunkQueue = UnorderedQueue<LoadChunk>;
-pub type DropChunkQueue = UnorderedQueue<DropChunk>;
+pub type LoadChunkQueue = UnorderedQueue<IVec3, LoadChunk>;
+pub type DropChunkQueue = UnorderedQueue<IVec3, DropChunk>;
 
 fn handle_load_chunk_queue(
     mut commands: Commands,
@@ -83,7 +90,7 @@ fn handle_load_chunk_queue(
     mut chunk_gen_queue: ResMut<ChunkGenerationQueue>,
     mut chunk_mesh_queue: ResMut<MeshChunkQueue>,
 ) {
-    for LoadChunk(position) in queue.drain(..) {
+    for position in queue.drain(..) {
         if !entity_map.map.contains_key(&position) {
             let material = materials.add(StandardMaterial::from(Color::rgb(1.0, 1.0, 1.0)));
             let entity = commands
@@ -106,8 +113,13 @@ fn handle_drop_chunk_queue(
     mut entity_map: ResMut<ChunkEntityMap>,
     mut queue: ResMut<DropChunkQueue>,
     mut world: ResMut<VoxelWorld>,
+    mut chunk_gen_queue: ResMut<ChunkGenerationQueue>,
+    mut chunk_mesh_queue: ResMut<MeshChunkQueue>,
 ) {
-    for DropChunk(position) in queue.drain(..) {
+    for position in queue.drain(..) {
+        chunk_gen_queue.remove(&position);
+        chunk_mesh_queue.remove(&position);
+
         if entity_map.map.contains_key(&position) {
             if let Some(chunk) = world.remove(&position) {
                 // TODO: save

@@ -2,14 +2,28 @@ use std::sync::{Arc, RwLock};
 
 use bevy::utils::HashMap;
 
-use crate::prelude::*;
+use crate::{generation::terrain::ChunkGenerator, prelude::*};
 
-#[derive(Default, Resource)]
+#[derive(Resource)]
 pub struct VoxelWorld {
     chunks: HashMap<IVec3, Arc<RwLock<VoxelChunk>>>,
+    generator: Arc<ChunkGenerator>,
+}
+
+impl Default for VoxelWorld {
+    fn default() -> Self {
+        Self {
+            chunks: HashMap::new(),
+            generator: Arc::new(ChunkGenerator::default()),
+        }
+    }
 }
 
 impl VoxelWorld {
+    pub fn get_generator(&self) -> Arc<ChunkGenerator> {
+        self.generator.clone()
+    }
+
     pub fn get(&self, position: &IVec3) -> Option<Arc<RwLock<VoxelChunk>>> {
         self.chunks.get(position).cloned()
     }

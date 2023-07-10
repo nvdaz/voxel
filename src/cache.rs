@@ -1,161 +1,59 @@
-use std::{collections::BTreeMap, hash::Hash};
+use std::{hash::Hash, sync::Arc};
 
-use bevy::utils::HashMap;
-use futures_lite::future::{block_on, poll_once};
+use dashmap::DashMap;
 use futures_util::future::{BoxFuture, Shared};
 
-use crate::prelude::*;
 
-pub trait Cache<'a, K, V>
-where
-    K: 'a,
-    V: 'a,
-{
-    type Iterator: Iterator<Item = (&'a K, &'a V)>;
-
-    fn len(&self) -> usize;
-    fn get(&self, key: &K) -> Option<&V>;
-    fn insert(&mut self, key: K, value: V);
-    fn iter(&'a self) -> Self::Iterator;
-    fn extend<T: IntoIterator<Item = (K, V)>>(&mut self, iter: T);
+pub enum FutureCacheResult<T> {
+    Hit(Arc<T>),
+    Waiting(Shared<BoxFuture<'static, Arc<T>>>),
 }
 
-pub trait SizedCache<'a, K, V>: Cache<'a, K, V>
-where
-    K: 'a,
-    V: 'a,
-{
-    fn max_size(&self) -> usize;
+pub struct FutureTaskCache<K, V> {
+    futures: DashMap<K, Shared<BoxFuture<'static, Arc<V>>>>,
+    results: DashMap<K, Arc<V>>,
 }
 
-#[derive(Resource)]
-pub struct IndefiniteCache<K, V>
-where
-    K: Eq + Hash,
-{
-    cache: HashMap<K, V>,
-}
-
-impl<K, V> IndefiniteCache<K, V>
+impl<K, V> FutureTaskCache<K, V>
 where
     K: Eq + Hash,
 {
     pub fn new() -> Self {
-        Self {
-            cache: HashMap::new(),
+        Self::default()
+    }
+
+    pub fn get(&self, key: &K) -> Option<FutureCacheResult<V>> {
+        if let Some(result) = self.results.get(key) {
+            Some(FutureCacheResult::Hit(result.clone()))
+        } else if let Some(future) = self.futures.get(key) {
+            Some(FutureCacheResult::Waiting(future.clone()))
+        } else {
+            None
         }
     }
 
-    // pub fn inner(&mut self) -> &mut HashMap<K, V> {
-    //     &mut self.cache
-    // }
+    pub fn insert_future(&self, key: K, future: Shared<BoxFuture<'static, Arc<V>>>) {
+        self.futures.insert(key, future);
+    }
+
+    pub fn insert_result(&self, key: K, result: Arc<V>) {
+        self.results.insert(key, result);
+    }
+
+    pub fn remove_future(&self, key: &K) {
+        self.futures.remove(key);
+    }
+
+    pub fn remove_result(&self, key: &K) {
+        self.results.remove(key);
+    }
 }
 
-impl<K, V> Default for IndefiniteCache<K, V>
-where
-    K: Eq + Hash,
-{
+impl<K: Eq + Hash, V> Default for FutureTaskCache<K, V> {
     fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<'a, K, V> Cache<'a, K, V> for IndefiniteCache<K, V>
-where
-    K: Eq + Hash + 'a,
-    V: 'a,
-{
-    type Iterator = bevy::utils::hashbrown::hash_map::Iter<'a, K, V>;
-
-    fn len(&self) -> usize {
-        self.cache.len()
-    }
-
-    fn get(&self, key: &K) -> Option<&V> {
-        self.cache.get(key)
-    }
-
-    fn insert(&mut self, key: K, value: V) {
-        self.cache.insert(key, value);
-    }
-
-    fn iter(&'a self) -> Self::Iterator {
-        self.cache.iter()
-    }
-
-    fn extend<T: IntoIterator<Item = (K, V)>>(&mut self, iter: T) {
-        self.cache.extend(iter);
-    }
-}
-
-pub type FutureCache<K, V> = IndefiniteCache<K, Shared<BoxFuture<'static, V>>>;
-
-impl<K: Copy + Eq + Hash, V: Clone> FutureCache<K, V> {
-    pub fn drain_completed(&mut self) -> impl Iterator<Item = (K, V)> + '_ {
-        let mut completed = HashMap::new();
-
-        self.cache.retain(|position, task| {
-            if let Some(result) = block_on(poll_once(task)) {
-                completed.insert(*position, result);
-                false
-            } else {
-                true
-            }
-        });
-
-        completed.into_iter()
-    }
-}
-
-#[derive(Resource)]
-pub struct OrderedCache<K, V> {
-    max_size: usize,
-    cache: BTreeMap<K, V>,
-}
-
-impl<K, V> OrderedCache<K, V> {
-    pub fn new(max_size: usize) -> Self {
         Self {
-            max_size,
-            cache: BTreeMap::new(),
+            futures: DashMap::default(),
+            results: DashMap::default(),
         }
-    }
-}
-
-impl<'a, K, V> Cache<'a, K, V> for OrderedCache<K, V>
-where
-    K: Eq + Hash + Ord + 'a,
-    V: 'a,
-{
-    type Iterator = std::collections::btree_map::Iter<'a, K, V>;
-
-    fn len(&self) -> usize {
-        self.cache.len()
-    }
-
-    fn get(&self, key: &K) -> Option<&V> {
-        self.cache.get(key)
-    }
-
-    fn insert(&mut self, key: K, value: V) {
-        self.cache.insert(key, value);
-
-        // if self.len() > self.max_size() {
-        //     self.cache.pop_last();
-        // }
-    }
-
-    fn iter(&'a self) -> Self::Iterator {
-        self.cache.iter()
-    }
-
-    fn extend<T: IntoIterator<Item = (K, V)>>(&mut self, iter: T) {
-        self.cache.extend(iter);
-    }
-}
-
-impl<'a, K: Eq + Hash + Ord + 'a, V: 'a> SizedCache<'a, K, V> for OrderedCache<K, V> {
-    fn max_size(&self) -> usize {
-        self.max_size
     }
 }

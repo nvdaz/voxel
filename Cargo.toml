@@ -10,6 +10,7 @@ bevy = "0.10.1"
 bevy_atmosphere = "0.6.0"
 bevy_dolly = { git = "https://github.com/BlackPhlox/bevy_dolly" }
 block-mesh = "0.2.0"
+dashmap = "5.4.0"
 futures-lite = "1.13.0"
 futures-util = "0.3.28"
 ilattice = "0.3.0"

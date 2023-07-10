@@ -37,22 +37,9 @@ impl Plugin for MeshPlugin {
     }
 }
 
-#[derive(Clone, Copy)]
-pub struct MeshChunk(IVec3);
+pub struct MeshChunk;
 
-impl From<IVec3> for MeshChunk {
-    fn from(value: IVec3) -> Self {
-        Self(value)
-    }
-}
-
-impl From<MeshChunk> for IVec3 {
-    fn from(value: MeshChunk) -> Self {
-        value.0
-    }
-}
-
-pub type MeshChunkQueue = DistanceOrderedQueue<MeshChunk, IVec3>;
+pub type MeshChunkQueue = DistanceOrderedQueue<IVec3, MeshChunk>;
 
 #[derive(Component)]
 pub struct MeshChunkTask {
@@ -78,8 +65,8 @@ fn handle_mesh_queue(
         queue.len(),
     );
 
-    while let Some(MeshChunk(position)) = queue.pop() {
-        if let Some(&entity) = entity_map.map.get(&position) {
+    while let Some(position) = queue.pop() {
+        if let Some(entity) = entity_map.get(&position) {
             if let Some(chunk) = world.get(&position) {
                 let task = thread_pool.spawn(generate_chunk_mesh_impl(chunk));
 

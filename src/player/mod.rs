@@ -140,7 +140,7 @@ fn drop_chunks(
 ) {
     let view_distance = render_settings.view_radius;
     let center = player_transform.single().translation();
-    for &offset in entity_map.map.keys() {
+    for &offset in entity_map.keys() {
         let distance = (center.as_ivec3() / CHUNK_SIZE as i32 - offset).abs();
         if distance
             .cmpgt(view_distance.as_ivec3() + IVec3::splat(render_settings.drop_padding as i32))

@@ -6,20 +6,10 @@ use crate::{
     render::mesh::MeshChunkQueue,
     world::chunk::{Chunk, ChunkEntityMap},
 };
-use bevy::{
-    math::Vec3Swizzles,
-    tasks::{AsyncComputeTaskPool, Task},
-};
+use bevy::tasks::{AsyncComputeTaskPool, Task};
 use futures_lite::future::{block_on, poll_once};
-use ilattice::prelude::Extent;
 
-use super::{
-    heightmap::{
-        generate_heightmap, GenerateHeightmapResult, HeightmapGenerationResultCache,
-        HeightmapGenerationTaskCache,
-    },
-    GenerationSettings,
-};
+use super::GenerationSettings;
 
 pub struct ChunkGenerationPlugin;
 
@@ -33,56 +23,13 @@ impl Plugin for ChunkGenerationPlugin {
     }
 }
 
-#[derive(Clone, Copy)]
-pub struct GenerateChunk(IVec3);
+pub struct GenerateChunk;
 
-impl From<IVec3> for GenerateChunk {
-    fn from(value: IVec3) -> Self {
-        Self(value)
-    }
-}
-
-impl From<GenerateChunk> for IVec3 {
-    fn from(value: GenerateChunk) -> Self {
-        value.0
-    }
-}
-
-pub type ChunkGenerationQueue = DistanceOrderedQueue<GenerateChunk, IVec3>;
+pub type ChunkGenerationQueue = DistanceOrderedQueue<IVec3, GenerateChunk>;
 
 #[derive(Component)]
 pub struct ChunkGenerationTask {
     task: Task<VoxelChunk>,
-}
-
-async fn generate_chunk_impl(origin: IVec3, heightmap: GenerateHeightmapResult) -> VoxelChunk {
-    let heightmap = match heightmap {
-        GenerateHeightmapResult::CacheHit(heightmap) => heightmap,
-        GenerateHeightmapResult::Loading(future) => future.await,
-    };
-
-    let mut voxels = VoxelBuffer::new();
-    for (offset, height) in heightmap.iter() {
-        let local_height = (height - (origin.y * CHUNK_SIZE as i32)).min(PADDED_CHUNK_SIZE as i32);
-        let extent = Extent::from_min_and_shape(
-            offset.extend_y(0),
-            UVec3::new(1, local_height.max(0) as u32, 1),
-        );
-        voxels.fill_extent(extent, Voxel(2));
-        if local_height > 0 && local_height < PADDED_CHUNK_SIZE as i32 {
-            *voxels.voxel_at_mut(offset.extend_y(local_height as u32)) = Voxel(3);
-        }
-
-        if height < 0 && local_height > 0 && local_height < PADDED_CHUNK_SIZE as i32 {
-            let extent = Extent::from_min_and_shape(
-                offset.extend_y(local_height as u32),
-                UVec3::new(1, PADDED_CHUNK_SIZE - local_height as u32 - 1, 1),
-            );
-            voxels.fill_extent(extent, Voxel(1));
-        }
-    }
-
-    VoxelChunk { voxels }
 }
 
 fn update_center(
@@ -99,9 +46,8 @@ fn update_center(
 fn handle_queue(
     mut commands: Commands,
     entity_map: Res<ChunkEntityMap>,
+    world: Res<VoxelWorld>,
     mut queue: ResMut<ChunkGenerationQueue>,
-    mut tasks_cache: ResMut<HeightmapGenerationTaskCache>,
-    mut results_cache: ResMut<HeightmapGenerationResultCache>,
     tasks: Query<Entity, With<ChunkGenerationTask>>,
     settings: Res<GenerationSettings>,
 ) {
@@ -115,12 +61,10 @@ fn handle_queue(
         queue.len(),
     );
 
-    while let Some(GenerateChunk(origin)) = queue.pop() {
-        let heightmap_result =
-            generate_heightmap(&mut tasks_cache, &mut results_cache, origin.xz());
-
-        if let Some(&entity) = entity_map.map.get(&origin) {
-            let task = thread_pool.spawn(generate_chunk_impl(origin, heightmap_result));
+    while let Some(origin) = queue.pop() {
+        if let Some(entity) = entity_map.get(&origin) {
+            let generator = world.get_generator();
+            let task = thread_pool.spawn(async move { generator.generate_chunk(origin).await });
             commands.entity(entity).insert(ChunkGenerationTask { task });
         }
 

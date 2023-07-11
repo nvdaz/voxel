@@ -1,4 +1,5 @@
 pub mod lighting;
+pub mod lod;
 pub mod mesh;
 
 use crate::prelude::*;
@@ -40,7 +41,7 @@ impl Default for RenderSettings {
 impl Default for RenderSettings {
     fn default() -> Self {
         Self {
-            view_radius: UVec3::new(32, 16, 32),
+            view_radius: UVec3::new(16, 4, 16),
             drop_padding: 2,
             max_mesh_tasks: 128,
         }

@@ -5,7 +5,7 @@ use futures_util::FutureExt;
 
 use crate::prelude::*;
 
-use self::{standard::StandardTerrainGenerator};
+use self::standard::StandardTerrainGenerator;
 
 pub mod flat;
 pub mod standard;
@@ -43,6 +43,10 @@ impl ChunkGenerator {
 
             FutureCacheResult::Waiting(future)
         }
+    }
+
+    pub fn process_cache(& self) {
+        self.heightmap_cache.handle_futures();
     }
 
     pub async fn generate_chunk(&self, origin: IVec3) -> VoxelChunk {

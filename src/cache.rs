@@ -1,8 +1,9 @@
 use std::{hash::Hash, sync::Arc};
 
+use bevy::utils::HashMap;
 use dashmap::DashMap;
+use futures_lite::future::{block_on, poll_once};
 use futures_util::future::{BoxFuture, Shared};
-
 
 pub enum FutureCacheResult<T> {
     Hit(Arc<T>),
@@ -16,7 +17,7 @@ pub struct FutureTaskCache<K, V> {
 
 impl<K, V> FutureTaskCache<K, V>
 where
-    K: Eq + Hash,
+    K: Copy + Eq + Hash,
 {
     pub fn new() -> Self {
         Self::default()
@@ -46,6 +47,23 @@ where
 
     pub fn remove_result(&self, key: &K) {
         self.results.remove(key);
+    }
+
+    pub fn handle_futures(&self) {
+        let mut finished = HashMap::new();
+        self.futures.retain(|key, future| {
+            if let Some(result) = block_on(poll_once(future)) {
+                finished.insert(*key, result);
+
+                false
+            } else {
+                true
+            }
+        });
+
+        for (key, result) in finished.into_iter() {
+            self.results.insert(key, result);
+        }
     }
 }
 

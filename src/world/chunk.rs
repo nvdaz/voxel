@@ -9,7 +9,7 @@ impl Plugin for WorldChunkPlugin {
         app.init_resource::<ChunkEntityMap>()
             .init_resource::<LoadChunkQueue>()
             .init_resource::<DropChunkQueue>()
-            .add_systems((handle_load_chunk_queue, handle_drop_chunk_queue));
+            .add_systems(Update, (handle_load_chunk_queue, handle_drop_chunk_queue));
     }
 }
 

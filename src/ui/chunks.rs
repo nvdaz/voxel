@@ -36,10 +36,7 @@ fn setup(asset_server: Res<AssetServer>, mut commands: Commands) {
         ])
         .with_style(Style {
             position_type: PositionType::Absolute,
-            position: UiRect {
-                top: Val::Px(32.0),
-                ..default()
-            },
+            top: Val::Px(32.0),
             ..default()
         }),
         ChunksText,
@@ -63,10 +60,7 @@ fn setup(asset_server: Res<AssetServer>, mut commands: Commands) {
         ])
         .with_style(Style {
             position_type: PositionType::Absolute,
-            position: UiRect {
-                top: Val::Px(64.0),
-                ..default()
-            },
+            top: Val::Px(64.0),
             ..default()
         }),
         GeneratingChunksText,
@@ -90,10 +84,7 @@ fn setup(asset_server: Res<AssetServer>, mut commands: Commands) {
         ])
         .with_style(Style {
             position_type: PositionType::Absolute,
-            position: UiRect {
-                top: Val::Px(96.0),
-                ..default()
-            },
+            top: Val::Px(96.0),
             ..default()
         }),
         MeshingChunksText,
@@ -117,10 +108,7 @@ fn setup(asset_server: Res<AssetServer>, mut commands: Commands) {
         ])
         .with_style(Style {
             position_type: PositionType::Absolute,
-            position: UiRect {
-                top: Val::Px(128.0),
-                ..default()
-            },
+            top: Val::Px(128.0),
             ..default()
         }),
         PositionText,
@@ -172,11 +160,14 @@ pub struct ChunksMenuPlugin;
 
 impl Plugin for ChunksMenuPlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(setup).add_systems((
-            update_chunks_system,
-            update_generating_chunks_system,
-            update_meshing_chunks_system,
-            update_position_system,
-        ));
+        app.add_systems(Startup, setup).add_systems(
+            Update,
+            (
+                update_chunks_system,
+                update_generating_chunks_system,
+                update_meshing_chunks_system,
+                update_position_system,
+            ),
+        );
     }
 }

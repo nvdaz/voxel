@@ -29,11 +29,10 @@ pub struct MeshPlugin;
 
 impl Plugin for MeshPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<MeshChunkQueue>().add_systems((
-            handle_mesh_queue,
-            handle_mesh_tasks,
-            update_center,
-        ));
+        app.init_resource::<MeshChunkQueue>().add_systems(
+            Update,
+            (handle_mesh_queue, handle_mesh_tasks, update_center),
+        );
     }
 }
 

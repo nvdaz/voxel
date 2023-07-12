@@ -1,3 +1,4 @@
+pub mod associated_ord;
 pub mod cache;
 pub mod generation;
 pub mod player;
@@ -8,8 +9,8 @@ pub mod storage;
 mod trait_ext;
 mod ui;
 pub mod world;
-pub mod associated_ord;
 
+use bevy::window::PresentMode;
 use generation::GenerationPlugin;
 use player::PlayerPlugin;
 use render::RenderPlugin;
@@ -20,12 +21,21 @@ use crate::prelude::*;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
-        .add_plugin(StoragePlugin)
-        .add_plugin(PlayerPlugin)
-        .add_plugin(GenerationPlugin)
-        .add_plugin(RenderPlugin)
-        .add_plugin(WorldPlugin)
-        .add_plugin(UiPlugin)
+        .add_plugins((
+            DefaultPlugins.set(WindowPlugin {
+                primary_window: Some(Window {
+                    title: "Voxels".into(),
+                    present_mode: PresentMode::Fifo,
+                    ..default()
+                }),
+                ..default()
+            }),
+            StoragePlugin,
+            PlayerPlugin,
+            GenerationPlugin,
+            RenderPlugin,
+            WorldPlugin,
+            UiPlugin,
+        ))
         .run();
 }

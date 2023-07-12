@@ -2,17 +2,19 @@ mod biomes;
 pub mod chunk;
 pub mod conditions;
 pub mod terrain;
+pub mod world;
 
 use crate::prelude::*;
 
-use self::chunk::ChunkGenerationPlugin;
+use self::{chunk::ChunkGenerationPlugin, world::VoxelWorldGenerator};
 
 pub struct GenerationPlugin;
 
 impl Plugin for GenerationPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<GenerationSettings>()
-            .add_plugin(ChunkGenerationPlugin);
+            .init_resource::<VoxelWorldGenerator>()
+            .add_plugins(ChunkGenerationPlugin);
     }
 }
 
@@ -25,7 +27,7 @@ pub struct GenerationSettings {
 impl Default for GenerationSettings {
     fn default() -> Self {
         Self {
-            max_generation_tasks: 8,
+            max_generation_tasks: 32,
         }
     }
 }
@@ -34,7 +36,7 @@ impl Default for GenerationSettings {
 impl Default for GenerationSettings {
     fn default() -> Self {
         Self {
-            max_generation_tasks: 128,
+            max_generation_tasks: 32,
         }
     }
 }

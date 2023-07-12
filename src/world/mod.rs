@@ -8,6 +8,6 @@ pub struct WorldPlugin;
 
 impl Plugin for WorldPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(WorldChunkPlugin);
+        app.add_plugins(WorldChunkPlugin);
     }
 }

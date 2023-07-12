@@ -1,5 +1,4 @@
 pub mod lighting;
-pub mod lod;
 pub mod mesh;
 
 use crate::prelude::*;
@@ -11,8 +10,7 @@ pub struct RenderPlugin;
 impl Plugin for RenderPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<RenderSettings>()
-            .add_plugin(MeshPlugin)
-            .add_plugin(LightingPlugin);
+            .add_plugins((MeshPlugin, LightingPlugin));
     }
 }
 
@@ -30,9 +28,9 @@ pub struct RenderSettings {
 impl Default for RenderSettings {
     fn default() -> Self {
         Self {
-            view_radius: UVec3::splat(2),
+            view_radius: UVec3::new(8, 4, 8),
             drop_padding: 2,
-            max_mesh_tasks: 8,
+            max_mesh_tasks: 32,
         }
     }
 }
@@ -43,7 +41,7 @@ impl Default for RenderSettings {
         Self {
             view_radius: UVec3::new(16, 4, 16),
             drop_padding: 2,
-            max_mesh_tasks: 128,
+            max_mesh_tasks: 32,
         }
     }
 }

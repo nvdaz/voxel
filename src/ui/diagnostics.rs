@@ -1,4 +1,4 @@
-use bevy::diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin};
+use bevy::diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin};
 
 use crate::prelude::*;
 
@@ -30,7 +30,10 @@ fn setup(asset_server: Res<AssetServer>, mut commands: Commands) {
     ));
 }
 
-fn update_fps_system(diagnostics: Res<Diagnostics>, mut text: Query<&mut Text, With<FpsText>>) {
+fn update_fps_system(
+    diagnostics: Res<DiagnosticsStore>,
+    mut text: Query<&mut Text, With<FpsText>>,
+) {
     for mut text in &mut text {
         if let Some(fps) = diagnostics.get(FrameTimeDiagnosticsPlugin::FPS) {
             if let Some(value) = fps.smoothed() {
@@ -44,8 +47,8 @@ pub struct DiagnosticsMenuPlugin;
 
 impl Plugin for DiagnosticsMenuPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(FrameTimeDiagnosticsPlugin)
-            .add_startup_system(setup)
-            .add_system(update_fps_system);
+        app.add_plugins(FrameTimeDiagnosticsPlugin)
+            .add_systems(Startup, setup)
+            .add_systems(Update, update_fps_system);
     }
 }

@@ -1,6 +1,5 @@
 use std::{hash::Hash, sync::Arc};
 
-use bevy::utils::HashMap;
 use dashmap::DashMap;
 use futures_lite::future::{block_on, poll_once};
 use futures_util::future::{BoxFuture, Shared};
@@ -27,7 +26,12 @@ where
         if let Some(result) = self.results.get(key) {
             Some(FutureCacheResult::Hit(result.clone()))
         } else if let Some(future) = self.futures.get(key) {
-            Some(FutureCacheResult::Waiting(future.clone()))
+            if let Some(result) = block_on(poll_once(future.clone())) {
+                self.results.insert(*key, result.clone());
+                Some(FutureCacheResult::Hit(result))
+            } else {
+                Some(FutureCacheResult::Waiting(future.clone()))
+            }
         } else {
             None
         }
@@ -47,23 +51,6 @@ where
 
     pub fn remove_result(&self, key: &K) {
         self.results.remove(key);
-    }
-
-    pub fn handle_futures(&self) {
-        let mut finished = HashMap::new();
-        self.futures.retain(|key, future| {
-            if let Some(result) = block_on(poll_once(future)) {
-                finished.insert(*key, result);
-
-                false
-            } else {
-                true
-            }
-        });
-
-        for (key, result) in finished.into_iter() {
-            self.results.insert(key, result);
-        }
     }
 }
 

@@ -64,8 +64,22 @@ impl TerrainGenerator for StandardTerrainGenerator {
                     position.extend_y(0),
                     UVec3::new(1, local_height as u32, 1),
                 ),
-                Voxel(3),
+                Voxel(2),
             );
+
+            if local_height > 0 && local_height < PADDED_CHUNK_SIZE as i32 {
+                *chunk
+                    .voxels
+                    .voxel_at_mut(position.extend_y(local_height as u32)) = Voxel(3);
+            }
+
+            if height < 0 && local_height > 0 && local_height < PADDED_CHUNK_SIZE as i32 {
+                let extent = Extent::from_min_and_shape(
+                    position.extend_y(local_height as u32),
+                    UVec3::new(1, PADDED_CHUNK_SIZE - local_height as u32 - 1, 1),
+                );
+                chunk.voxels.fill_extent(extent, Voxel(1));
+            }
         }
     }
 }

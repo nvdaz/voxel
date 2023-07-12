@@ -9,7 +9,6 @@ pub struct UiPlugin;
 
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(ChunksMenuPlugin)
-            .add_plugin(DiagnosticsMenuPlugin);
+        app.add_plugins((ChunksMenuPlugin, DiagnosticsMenuPlugin));
     }
 }

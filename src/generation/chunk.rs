@@ -1,4 +1,4 @@
-use std::cmp;
+use std::{cmp, sync::Arc};
 
 use crate::{
     player::PlayerCamera,
@@ -6,20 +6,70 @@ use crate::{
     render::mesh::MeshChunkQueue,
     world::chunk::{Chunk, ChunkEntityMap},
 };
-use bevy::tasks::{AsyncComputeTaskPool, Task};
+use bevy::{
+    math::Vec3Swizzles,
+    tasks::{AsyncComputeTaskPool, Task},
+};
 use futures_lite::future::{block_on, poll_once};
+use futures_util::FutureExt;
 
-use super::GenerationSettings;
+use super::{
+    terrain::{standard::StandardTerrainGenerator, TerrainGenerator},
+    world::VoxelWorldGenerator,
+    GenerationSettings,
+};
+
+pub struct ChunkGenerator {
+    heightmap_cache: FutureTaskCache<IVec2, Heightmap>,
+    terrain_generator: Arc<dyn TerrainGenerator>,
+}
+
+impl Default for ChunkGenerator {
+    fn default() -> Self {
+        Self {
+            heightmap_cache: FutureTaskCache::default(),
+            terrain_generator: Arc::new(StandardTerrainGenerator::default()),
+        }
+    }
+}
+
+impl ChunkGenerator {
+    fn generate_heightmap(&self, origin: IVec2) -> FutureCacheResult<Heightmap> {
+        if let Some(result) = self.heightmap_cache.get(&origin) {
+            result
+        } else {
+            let terrain_generator = self.terrain_generator.clone();
+            let future = async move { Arc::new(terrain_generator.generate_heightmap(origin)) }
+                .boxed()
+                .shared();
+
+            self.heightmap_cache.insert_future(origin, future.clone());
+
+            FutureCacheResult::Waiting(future)
+        }
+    }
+
+    pub async fn generate_chunk(&self, origin: IVec3) -> VoxelChunk {
+        let mut chunk = VoxelChunk::default();
+
+        let heightmap = match self.generate_heightmap(origin.xz()) {
+            FutureCacheResult::Hit(heightmap) => heightmap,
+            FutureCacheResult::Waiting(future) => future.await,
+        };
+
+        self.terrain_generator
+            .generate_terrain(origin, &heightmap, &mut chunk);
+
+        chunk
+    }
+}
 
 pub struct ChunkGenerationPlugin;
 
 impl Plugin for ChunkGenerationPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<ChunkGenerationQueue>().add_systems((
-            handle_queue,
-            handle_tasks,
-            update_center,
-        ));
+        app.init_resource::<ChunkGenerationQueue>()
+            .add_systems(Update, (handle_queue, handle_tasks, update_center));
     }
 }
 
@@ -46,7 +96,7 @@ fn update_center(
 fn handle_queue(
     mut commands: Commands,
     entity_map: Res<ChunkEntityMap>,
-    world: Res<VoxelWorld>,
+    generator: Res<VoxelWorldGenerator>,
     mut queue: ResMut<ChunkGenerationQueue>,
     tasks: Query<Entity, With<ChunkGenerationTask>>,
     settings: Res<GenerationSettings>,
@@ -63,7 +113,7 @@ fn handle_queue(
 
     while let Some(origin) = queue.pop() {
         if let Some(entity) = entity_map.get(&origin) {
-            let generator = world.get_generator();
+            let generator = generator.get();
             let task = thread_pool.spawn(async move { generator.generate_chunk(origin).await });
             commands.entity(entity).insert(ChunkGenerationTask { task });
         }

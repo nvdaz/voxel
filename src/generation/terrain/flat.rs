@@ -4,14 +4,9 @@ use crate::prelude::*;
 
 use super::TerrainGenerator;
 
+#[derive(Default)]
 pub struct FlatTerrainGenerator {
     height: i32,
-}
-
-impl Default for FlatTerrainGenerator {
-    fn default() -> Self {
-        Self { height: 0 }
-    }
 }
 
 impl TerrainGenerator for FlatTerrainGenerator {

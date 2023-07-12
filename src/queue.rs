@@ -9,6 +9,9 @@ pub trait Queue<T> {
     fn pop(&mut self) -> Option<T>;
     fn remove(&mut self, value: &T);
     fn len(&self) -> usize;
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 #[derive(Resource)]
@@ -19,7 +22,7 @@ pub struct UnorderedQueue<T: PartialEq + Eq + Hash, M> {
 
 impl<T: PartialEq + Eq + Hash, M> Queue<T> for UnorderedQueue<T, M> {
     fn push(&mut self, value: T) {
-        self.inner.insert(value.into());
+        self.inner.insert(value);
     }
 
     fn pop(&mut self) -> Option<T> {
@@ -32,6 +35,10 @@ impl<T: PartialEq + Eq + Hash, M> Queue<T> for UnorderedQueue<T, M> {
 
     fn len(&self) -> usize {
         self.inner.len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.inner.is_empty()
     }
 }
 
@@ -57,7 +64,7 @@ pub struct OrderedQueue<T: Ord> {
 
 impl<T: Ord> Queue<T> for OrderedQueue<T> {
     fn push(&mut self, value: T) {
-        self.inner.insert(value.into());
+        self.inner.insert(value);
     }
 
     fn pop(&mut self) -> Option<T> {
@@ -70,6 +77,10 @@ impl<T: Ord> Queue<T> for OrderedQueue<T> {
 
     fn len(&self) -> usize {
         self.inner.len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.inner.is_empty()
     }
 }
 
@@ -118,6 +129,10 @@ where
 
     fn len(&self) -> usize {
         self.inner.len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.inner.is_empty()
     }
 }
 

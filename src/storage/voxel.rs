@@ -10,7 +10,7 @@ impl Voxel {
 
     pub fn get_color(&self) -> Color {
         match self {
-            Self(1) => Color::INDIGO,
+            Self(1) => Color::TURQUOISE,
             Self(2) => Color::DARK_GRAY,
             Self(3) => Color::GREEN,
             _ => Color::WHITE,

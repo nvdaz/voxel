@@ -1,11 +1,14 @@
 use crate::{
     prelude::*,
     render::RenderSettings,
-    world::chunk::{ChunkEntityMap, DropChunkQueue, LoadChunkQueue},
+    world::{
+        chunk::{ChunkEntityMap, DropChunkQueue, LoadChunkQueue},
+        heightmap::{DropHeightmapQueue, HeightmapEntityMap, LoadHeightmapQueue},
+    },
 };
 use bevy::{
     core_pipeline::experimental::taa::TemporalAntiAliasBundle, input::mouse::MouseMotion,
-    pbr::ScreenSpaceAmbientOcclusionBundle, window::PrimaryWindow,
+    math::Vec3Swizzles, pbr::ScreenSpaceAmbientOcclusionBundle, window::PrimaryWindow,
 };
 use bevy_dolly::prelude::*;
 
@@ -131,6 +134,7 @@ fn load_chunks(
     render_settings: Res<RenderSettings>,
     player_transform: Query<&GlobalTransform, With<PlayerCamera>>,
     mut chunk_queue: ResMut<LoadChunkQueue>,
+    mut heightmap_queue: ResMut<LoadHeightmapQueue>,
 ) {
     let view_distance = render_settings.view_radius;
     let center = player_transform.single().translation();
@@ -142,35 +146,54 @@ fn load_chunks(
                     y - view_distance.y as i32,
                     z - view_distance.z as i32,
                 );
-                let chunk = center.as_ivec3() / CHUNK_SIZE as i32 + offset;
-                chunk_queue.push(chunk);
+                let position = center.as_ivec3() / CHUNK_SIZE as i32 + offset;
+                chunk_queue.push(position);
             }
         }
     }
-    // for offset in
-    //     Extent::from_min_and_shape(-view_distance.as_ivec3(), view_distance.as_ivec3() * 2).iter3()
-    // {
-    //     let chunk = center.as_ivec3() / CHUNK_SIZE as i32 + offset;
 
-    //     chunk_queue.push(chunk);
-    // }
+    let far_view_distance = render_settings.far_view_radius;
+    for x in 0..=(far_view_distance.x * 2) as i32 {
+        for y in 0..=(far_view_distance.y * 2) as i32 {
+            let offset = IVec2::new(
+                x - far_view_distance.x as i32,
+                y - far_view_distance.y as i32,
+            );
+            let position = center.xz().as_ivec2() / CHUNK_SIZE as i32 + offset;
+            heightmap_queue.push(position);
+        }
+    }
 }
 
 fn drop_chunks(
     render_settings: Res<RenderSettings>,
     player_transform: Query<&GlobalTransform, With<PlayerCamera>>,
-    entity_map: Res<ChunkEntityMap>,
+    chunk_entity_map: Res<ChunkEntityMap>,
+    heightmap_entity_map: Res<HeightmapEntityMap>,
     mut drop_chunk_queue: ResMut<DropChunkQueue>,
+    mut drop_heightmap_queue: ResMut<DropHeightmapQueue>,
 ) {
-    let view_distance = render_settings.view_radius;
     let center = player_transform.single().translation();
-    for &offset in entity_map.keys() {
+
+    let view_distance = render_settings.view_radius;
+    for &offset in chunk_entity_map.keys() {
         let distance = (center.as_ivec3() / CHUNK_SIZE as i32 - offset).abs();
         if distance
             .cmpgt(view_distance.as_ivec3() + IVec3::splat(render_settings.drop_padding as i32))
             .any()
         {
             drop_chunk_queue.push(offset);
+        }
+    }
+
+    let far_view_distance = render_settings.far_view_radius;
+    for &offset in heightmap_entity_map.keys() {
+        let distance = (center.xz().as_ivec2() / CHUNK_SIZE as i32 - offset).abs();
+        if distance
+            .cmpgt(far_view_distance.as_ivec2() + IVec2::splat(render_settings.drop_padding as i32))
+            .any()
+        {
+            drop_heightmap_queue.push(offset);
         }
     }
 }

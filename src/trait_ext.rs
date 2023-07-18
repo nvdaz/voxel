@@ -12,6 +12,16 @@ impl UVec2Ext for UVec2 {
     }
 }
 
+pub trait IVec2Ext {
+    fn extend_y(self, y: i32) -> IVec3;
+}
+
+impl IVec2Ext for IVec2 {
+    fn extend_y(self, y: i32) -> IVec3 {
+        IVec3::new(self.x, y, self.y)
+    }
+}
+
 pub trait LengthSquared {
     type Output;
 
@@ -56,6 +66,17 @@ pub trait DistanceOrd: DistanceSquared {
 
 impl DistanceOrd for IVec3 {
     type AsOrd = (i32, [i32; 3]);
+
+    fn distance_ord(self, center: Self) -> Self::AsOrd {
+        let distance_squared = self.distance_squared(center);
+        let location = self.into();
+
+        (distance_squared, location)
+    }
+}
+
+impl DistanceOrd for IVec2 {
+    type AsOrd = (i32, [i32; 2]);
 
     fn distance_ord(self, center: Self) -> Self::AsOrd {
         let distance_squared = self.distance_squared(center);

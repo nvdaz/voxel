@@ -23,11 +23,11 @@ use crate::{
     world::chunk::{Chunk, ChunkEntityMap},
 };
 
-use super::RenderSettings;
+use crate::render::RenderSettings;
 
-pub struct MeshPlugin;
+pub struct MeshChunkPlugin;
 
-impl Plugin for MeshPlugin {
+impl Plugin for MeshChunkPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<MeshChunkQueue>().add_systems(
             Update,
@@ -83,9 +83,9 @@ fn handle_mesh_queue(
 fn handle_mesh_tasks(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut tasks: Query<(Entity, &mut Handle<Mesh>, &mut MeshChunkTask), With<Chunk>>,
+    mut tasks: Query<(Entity, &mut Chunk, &mut Handle<Mesh>, &mut MeshChunkTask), With<Chunk>>,
 ) {
-    for (entity, mut handle, mut task) in &mut tasks {
+    for (entity, mut chunk, mut handle, mut task) in &mut tasks {
         if let Some(mesh) = block_on(poll_once(&mut task.task)) {
             commands.entity(entity).remove::<MeshChunkTask>();
             if let Some(mesh_handle) = meshes.get_mut(&handle) {
@@ -93,6 +93,7 @@ fn handle_mesh_tasks(
             } else {
                 *handle = meshes.add(mesh);
             }
+            chunk.is_loaded = true;
         }
     }
 }

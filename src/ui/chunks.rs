@@ -2,7 +2,7 @@ use crate::{
     generation::chunk::{ChunkGenerationQueue, ChunkGenerationTask},
     player::PlayerCamera,
     prelude::*,
-    render::mesh::{MeshChunkQueue, MeshChunkTask},
+    render::mesh::chunk::{MeshChunkQueue, MeshChunkTask},
 };
 
 #[derive(Component)]

@@ -1,6 +1,14 @@
-use bevy::{math::Vec3A, render::primitives::Aabb, utils::HashMap};
+use bevy::{
+    math::{Vec3A, Vec3Swizzles},
+    render::primitives::Aabb,
+    utils::HashMap,
+};
 
-use crate::{generation::chunk::ChunkGenerationQueue, prelude::*, render::mesh::MeshChunkQueue};
+use crate::{
+    generation::chunk::ChunkGenerationQueue, prelude::*, render::mesh::chunk::MeshChunkQueue,
+};
+
+use super::heightmap::{HeightmapEntityMap, HeightmapMarker};
 
 pub struct WorldChunkPlugin;
 
@@ -16,6 +24,7 @@ impl Plugin for WorldChunkPlugin {
 #[derive(Component)]
 pub struct Chunk {
     pub position: IVec3,
+    pub is_loaded: bool,
 }
 
 #[derive(Bundle)]
@@ -33,7 +42,10 @@ pub struct ChunkBundle {
 impl ChunkBundle {
     fn new(position: IVec3, mesh: Handle<Mesh>, material: Handle<StandardMaterial>) -> Self {
         Self {
-            chunk: Chunk { position },
+            chunk: Chunk {
+                position,
+                is_loaded: false,
+            },
             mesh,
             material,
             transform: Transform::from_translation((position * CHUNK_SIZE as i32 - 1).as_vec3()),
@@ -115,18 +127,23 @@ fn handle_drop_chunk_queue(
     mut world: ResMut<VoxelWorld>,
     mut chunk_gen_queue: ResMut<ChunkGenerationQueue>,
     mut chunk_mesh_queue: ResMut<MeshChunkQueue>,
+    heightmap_entity_map: Res<HeightmapEntityMap>,
+    mut heightmaps: Query<&mut HeightmapMarker>,
 ) {
     for position in queue.drain(..) {
         chunk_gen_queue.remove(&position);
         chunk_mesh_queue.remove(&position);
 
-        if entity_map.map.contains_key(&position) {
+        if let Some(entity) = entity_map.map.remove(&position) {
             if let Some(chunk) = world.remove(&position) {
                 // TODO: save
             }
 
-            if let Some(entity) = entity_map.map.remove(&position) {
-                commands.entity(entity).despawn();
+            commands.entity(entity).despawn();
+        }
+        if let Some(entity) = heightmap_entity_map.get(&position.xz()) {
+            if let Ok(mut heightmap) = heightmaps.get_mut(entity) {
+                heightmap.blocking.remove(&position);
             }
         }
     }

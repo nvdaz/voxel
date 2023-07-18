@@ -152,18 +152,22 @@ fn handle_blocking(
     mut heightmaps: Query<(&HeightmapMarker, &mut Visibility), Changed<HeightmapMarker>>,
 ) {
     for (heightmap, mut visibility) in &mut heightmaps {
-        let mut should_block = false;
+        let maximum_chunk =
+            (heightmap.maximum.saturating_add(CHUNK_SIZE as i32 - 1)) / CHUNK_SIZE as i32;
+        let minimum_chunk =
+            (heightmap.minimum.saturating_add(CHUNK_SIZE as i32 - 1)) / CHUNK_SIZE as i32;
+
+        let mut required_to_block = maximum_chunk.saturating_sub(minimum_chunk) as u32 + 1;
 
         for position in &heightmap.blocking {
             if ((position.y + 1) * CHUNK_SIZE as i32) > heightmap.minimum
                 && (position.y * CHUNK_SIZE as i32) < heightmap.maximum
             {
-                should_block = true;
-                break;
+                required_to_block = required_to_block.saturating_sub(1);
             }
         }
 
-        *visibility = if should_block {
+        *visibility = if required_to_block == 0 {
             Visibility::Hidden
         } else {
             Visibility::Visible

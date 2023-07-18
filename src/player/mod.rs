@@ -77,7 +77,7 @@ fn update_camera(
     mut rig_query: Query<&mut Rig, With<PlayerCamera>>,
 ) {
     let time_delta_seconds: f32 = time.delta_seconds();
-    let boost_mult = 60.0f32;
+    let boost_mult = 10.0f32;
     let sensitivity = Vec2::splat(1.0);
 
     let mut move_vec = Vec3::ZERO;

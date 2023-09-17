@@ -3,6 +3,7 @@ use bevy::{
     render::primitives::Aabb,
     utils::HashMap,
 };
+use block_mesh_pop::{LodEasing, LodMaterial, WrappedMaterial};
 
 use crate::{
     generation::chunk::ChunkGenerationQueue, prelude::*, render::mesh::chunk::MeshChunkQueue,
@@ -25,13 +26,15 @@ impl Plugin for WorldChunkPlugin {
 pub struct Chunk {
     pub position: IVec3,
     pub is_loaded: bool,
+    pub lod: usize,
 }
 
 #[derive(Bundle)]
 pub struct ChunkBundle {
     chunk: Chunk,
     mesh: Handle<Mesh>,
-    material: Handle<StandardMaterial>,
+    material: WrappedMaterial<StandardMaterial>,
+    lod: Handle<LodMaterial<6>>,
     transform: Transform,
     global_transform: GlobalTransform,
     visibility: Visibility,
@@ -40,14 +43,21 @@ pub struct ChunkBundle {
 }
 
 impl ChunkBundle {
-    fn new(position: IVec3, mesh: Handle<Mesh>, material: Handle<StandardMaterial>) -> Self {
+    fn new(
+        position: IVec3,
+        mesh: Handle<Mesh>,
+        material: Handle<StandardMaterial>,
+        lod: Handle<LodMaterial<6>>,
+    ) -> Self {
         Self {
             chunk: Chunk {
                 position,
                 is_loaded: false,
+                lod: 0,
             },
             mesh,
-            material,
+            material: material.into(),
+            lod,
             transform: Transform::from_translation((position * CHUNK_SIZE as i32 - 1).as_vec3()),
             global_transform: GlobalTransform::default(),
             visibility: Visibility::default(),
@@ -95,6 +105,7 @@ pub type DropChunkQueue = UnorderedQueue<IVec3, DropChunk>;
 
 fn handle_load_chunk_queue(
     mut commands: Commands,
+    mut lod_materials: ResMut<Assets<LodMaterial<6>>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut entity_map: ResMut<ChunkEntityMap>,
     mut queue: ResMut<LoadChunkQueue>,
@@ -105,8 +116,20 @@ fn handle_load_chunk_queue(
     for position in queue.drain(..) {
         if !entity_map.map.contains_key(&position) {
             let material = materials.add(StandardMaterial::from(Color::rgb(1.0, 1.0, 1.0)));
+            let lod_material = lod_materials.add(LodMaterial {
+                size: UVec3::splat(64),
+                max_lod: 6,
+                period: 1024,
+                easing: LodEasing::Sine,
+                buckets: [UVec4::ZERO; 2],
+            });
             let entity = commands
-                .spawn(ChunkBundle::new(position, Handle::default(), material))
+                .spawn(ChunkBundle::new(
+                    position,
+                    Handle::default(),
+                    material,
+                    lod_material,
+                ))
                 .id();
 
             entity_map.map.insert(position, entity);

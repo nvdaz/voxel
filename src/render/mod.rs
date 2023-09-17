@@ -1,6 +1,8 @@
 pub mod lighting;
 pub mod mesh;
 
+use block_mesh_pop::{LodMaterialPlugin, LodRenderPlugin};
+
 use crate::prelude::*;
 
 use self::{
@@ -13,6 +15,8 @@ pub struct RenderPlugin;
 impl Plugin for RenderPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<RenderSettings>().add_plugins((
+            LodRenderPlugin,
+            LodMaterialPlugin::<6, StandardMaterial>::default(),
             MeshChunkPlugin,
             MeshHeightmapPlugin,
             LightingPlugin,
@@ -39,7 +43,7 @@ impl Default for RenderSettings {
             view_radius: UVec3::new(8, 4, 8),
             drop_padding: 2,
             max_mesh_tasks: 32,
-            far_view_radius: UVec2::splat(12),
+            far_view_radius: UVec2::splat(8),
         }
     }
 }
@@ -48,10 +52,10 @@ impl Default for RenderSettings {
 impl Default for RenderSettings {
     fn default() -> Self {
         Self {
-            view_radius: UVec3::new(16, 4, 16),
+            view_radius: UVec3::new(12, 4, 12),
             drop_padding: 2,
             max_mesh_tasks: 32,
-            far_view_radius: UVec2::splat(20),
+            far_view_radius: UVec2::splat(16),
         }
     }
 }

@@ -1,4 +1,4 @@
-use block_mesh::{MergeVoxel, VoxelVisibility};
+use block_mesh_pop::{MergeVoxel, MeshVoxel, VoxelVisibility};
 
 use crate::prelude::Color;
 
@@ -24,8 +24,8 @@ impl Default for Voxel {
     }
 }
 
-impl block_mesh::Voxel for Voxel {
-    fn get_visibility(&self) -> VoxelVisibility {
+impl MeshVoxel for Voxel {
+    fn get_visibility(&self) -> block_mesh_pop::VoxelVisibility {
         match *self {
             Self::EMPTY => VoxelVisibility::Empty,
             Self(1) => VoxelVisibility::Translucent,
@@ -35,9 +35,14 @@ impl block_mesh::Voxel for Voxel {
 }
 
 impl MergeVoxel for Voxel {
-    type MergeValue = u16;
+    type MergeValue = Self;
+    type MergeValueFacingNeighbour = Self;
 
     fn merge_value(&self) -> Self::MergeValue {
-        self.0
+        *self
+    }
+
+    fn merge_value_facing_neighbour(&self) -> Self::MergeValueFacingNeighbour {
+        *self
     }
 }

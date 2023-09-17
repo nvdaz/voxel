@@ -11,16 +11,14 @@ opt-level = 3
 [profile.dev]
 opt-level = 1
 
-[profile.release]
-lto = true
+# [profile.release]
+# lto = true
 
 [dependencies]
 bevy = "0.11"
-# bevy_atmosphere = "0.6.0"
-# bevy_dolly = { git = "https://github.com/BlackPhlox/bevy_dolly" }
-bevy_atmosphere = { git = "https://github.com/GodGotzi/bevy_atmosphere" }
+bevy_atmosphere = "0.7"
 bevy_dolly = "0.0"
-block-mesh = "0.2.0"
+block_mesh_pop = { git = "https://github.com/nvdaz/block_mesh_pop" }
 dashmap = "5.4.0"
 futures-lite = "1.13.0"
 futures-util = "0.3.28"

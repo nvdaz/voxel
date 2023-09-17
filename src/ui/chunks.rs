@@ -36,7 +36,7 @@ fn setup(asset_server: Res<AssetServer>, mut commands: Commands) {
         ])
         .with_style(Style {
             position_type: PositionType::Absolute,
-            top: Val::Px(32.0),
+            top: Val::Px(64.0),
             ..default()
         }),
         ChunksText,
@@ -60,7 +60,7 @@ fn setup(asset_server: Res<AssetServer>, mut commands: Commands) {
         ])
         .with_style(Style {
             position_type: PositionType::Absolute,
-            top: Val::Px(64.0),
+            top: Val::Px(96.0),
             ..default()
         }),
         GeneratingChunksText,
@@ -84,7 +84,7 @@ fn setup(asset_server: Res<AssetServer>, mut commands: Commands) {
         ])
         .with_style(Style {
             position_type: PositionType::Absolute,
-            top: Val::Px(96.0),
+            top: Val::Px(128.0),
             ..default()
         }),
         MeshingChunksText,
@@ -108,7 +108,7 @@ fn setup(asset_server: Res<AssetServer>, mut commands: Commands) {
         ])
         .with_style(Style {
             position_type: PositionType::Absolute,
-            top: Val::Px(128.0),
+            top: Val::Px(160.0),
             ..default()
         }),
         PositionText,

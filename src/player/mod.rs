@@ -10,14 +10,14 @@ use bevy::{
     core_pipeline::experimental::taa::TemporalAntiAliasBundle, input::mouse::MouseMotion,
     math::Vec3Swizzles, pbr::ScreenSpaceAmbientOcclusionBundle, window::PrimaryWindow,
 };
+use bevy_atmosphere::prelude::{AtmosphereCamera, AtmospherePlugin};
 use bevy_dolly::prelude::*;
 
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(DollyCursorGrab)
-            // .add_plugin(AtmospherePlugin)
+        app.add_plugins((AtmospherePlugin, DollyCursorGrab))
             .add_systems(Startup, setup)
             .add_systems(
                 Update,
@@ -39,7 +39,7 @@ pub struct PlayerCameraBundle {
     player_camera: PlayerCamera,
     rig: Rig,
     camera: Camera3dBundle,
-    // atmosphere_camera: AtmosphereCamera,
+    atmosphere_camera: AtmosphereCamera,
 }
 
 fn setup(mut commands: Commands, render_settings: Res<RenderSettings>) {
@@ -63,7 +63,7 @@ fn setup(mut commands: Commands, render_settings: Res<RenderSettings>) {
                 }),
                 ..default()
             },
-            // atmosphere_camera: AtmosphereCamera::default(),
+            atmosphere_camera: AtmosphereCamera::default(),
         })
         .insert(ScreenSpaceAmbientOcclusionBundle::default())
         .insert(TemporalAntiAliasBundle::default());
@@ -160,7 +160,7 @@ fn load_chunks(
                 y - far_view_distance.y as i32,
             );
             let position = center.xz().as_ivec2() / CHUNK_SIZE as i32 + offset;
-            heightmap_queue.push(position);
+            // heightmap_queue.push(position);
         }
     }
 }
